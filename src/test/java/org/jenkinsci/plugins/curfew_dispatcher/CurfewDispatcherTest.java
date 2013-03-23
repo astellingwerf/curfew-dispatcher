@@ -6,6 +6,7 @@ import hudson.model.Project;
 import hudson.model.Queue;
 import hudson.model.queue.CauseOfBlockage;
 import hudson.tasks.BuildWrapper;
+import org.joda.time.MutableDateTime;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -61,10 +62,10 @@ public class CurfewDispatcherTest {
         Mockito.when(t.getBuildWrappers()).thenReturn(map);
 
         CurfewDispatcher.CALENDAR_PROVIDER = new CurfewDispatcher.CalendarProvider() {
-            public Calendar getCalendar() {
-                Calendar c = Calendar.getInstance();
-                c.set(Calendar.HOUR_OF_DAY, params.start / 100);
-                c.set(Calendar.MINUTE, params.start % 100);
+            public MutableDateTime getCalendar() {
+                MutableDateTime c = new MutableDateTime();
+                c.setHourOfDay(params.start / 100);
+                c.setMinuteOfHour(params.start % 100);
 
                 return c;
             }

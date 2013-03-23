@@ -5,15 +5,17 @@ import hudson.model.Project;
 import hudson.model.Queue;
 import hudson.model.queue.CauseOfBlockage;
 import hudson.model.queue.QueueTaskDispatcher;
-
-import java.util.Calendar;
+import org.joda.time.Duration;
+import org.joda.time.Interval;
+import org.joda.time.MutableDateTime;
+import org.joda.time.MutableInterval;
 
 @Extension
 public class CurfewDispatcher extends QueueTaskDispatcher {
 
     /*package internal*/ static CalendarProvider CALENDAR_PROVIDER = new CalendarProvider() {
-        public Calendar getCalendar() {
-            return Calendar.getInstance();
+        public MutableDateTime getCalendar() {
+            return new MutableDateTime();
         }
     };
 
@@ -31,18 +33,20 @@ public class CurfewDispatcher extends QueueTaskDispatcher {
         if (configuration == null) {
             return super.canRun(item);
         } else {
-            final Calendar startOfCurfew = CALENDAR_PROVIDER.getCalendar();
-            startOfCurfew.set(Calendar.HOUR_OF_DAY, configuration.getStartHour());
-            startOfCurfew.set(Calendar.MINUTE, configuration.getStartMinutes());
 
-            final Calendar endOfCurfew = (Calendar) startOfCurfew.clone();
-            endOfCurfew.add(Calendar.MINUTE, configuration.getDurationInt());
+            final MutableDateTime startOfCurfew = CALENDAR_PROVIDER.getCalendar();
+            startOfCurfew.setHourOfDay(configuration.getStartHour());
+            startOfCurfew.setMinuteOfHour(configuration.getStartMinutes());
 
-            final Calendar estimatedEndOfItem = CALENDAR_PROVIDER.getCalendar();
-            estimatedEndOfItem.add(Calendar.SECOND, (int) (item.task.getEstimatedDuration() / 1000L));
 
-            while (startOfCurfew.before(estimatedEndOfItem)) {
-                if (estimatedEndOfItem.after(startOfCurfew) && estimatedEndOfItem.before(endOfCurfew)) {
+            final MutableInterval curfew = new MutableInterval(startOfCurfew, new Duration(configuration.getDurationInt() * 60L * 1000l));
+
+
+            final Interval run = new Interval(CALENDAR_PROVIDER.getCalendar(), new Duration(item.task.getEstimatedDuration()));
+
+            boolean plusOneIteration = false;
+            do {
+                if (run.overlaps(curfew)) {
                     return new CauseOfBlockage() {
                         @Override
                         public String getShortDescription() {
@@ -50,8 +54,9 @@ public class CurfewDispatcher extends QueueTaskDispatcher {
                         }
                     };
                 }
-                estimatedEndOfItem.add(Calendar.DAY_OF_YEAR, -1);
-            }
+                curfew.setEnd(curfew.getEnd().plusDays(1));
+                curfew.setStart(curfew.getStart().plusDays(1));
+            } while (plusOneIteration ^ (plusOneIteration |= !curfew.getStart().isBefore(CALENDAR_PROVIDER.getCalendar())));
 
             return null;
         }
@@ -59,6 +64,6 @@ public class CurfewDispatcher extends QueueTaskDispatcher {
     }
 
     interface CalendarProvider {
-        Calendar getCalendar();
+        MutableDateTime getCalendar();
     }
 }
