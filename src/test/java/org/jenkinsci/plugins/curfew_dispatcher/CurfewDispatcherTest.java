@@ -28,6 +28,8 @@ public class CurfewDispatcherTest {
     public static Collection<Object[]> data() {
         Object[][] data = new Object[][]{
                 {verifyCurfew(2000, 120).expectRun(1930, 20)},
+                {verifyCurfew(2000, 120).expectBlockedRun(2100, 20)},
+                {verifyCurfew(2000, 120).expectBlockedRun(2100, 120)},
                 {verifyCurfew(2000, 120).expectBlockedRun(1950, 20)},
                 {verifyCurfew(2000, 120).expectBlockedRun(1941, 20)},
                 {verifyCurfew(2000, 120).expectBlockedRun(1945, 90)},
