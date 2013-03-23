@@ -6,6 +6,8 @@ import hudson.model.Project;
 import hudson.model.Queue;
 import hudson.model.queue.CauseOfBlockage;
 import hudson.tasks.BuildWrapper;
+import org.joda.time.DateTime;
+import org.joda.time.Duration;
 import org.joda.time.MutableDateTime;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -19,7 +21,23 @@ import static org.junit.Assert.assertNull;
 
 @RunWith(Parameterized.class)
 public class CurfewDispatcherTest {
-    final ParamsBuilder params;
+    //Instants
+    private static final DateTime _1AM = createDateTime(1, 0);
+    private static final DateTime _7PM = createDateTime(19, 0);
+    private static final DateTime _7_30PM = createDateTime(19, 30);
+    private static final DateTime _7_40PM = createDateTime(19, 40);
+    private static final DateTime _7_50PM = createDateTime(19, 50);
+    private static final DateTime _8PM = createDateTime(20, 0);
+    private static final DateTime _9PM = createDateTime(21, 0);
+    private static final DateTime _10PM = createDateTime(22, 0);
+    private static final DateTime _11_30PM = createDateTime(23, 30);
+    //Durations
+    private static final Duration _20MIN = createDuration(20);
+    private static final Duration _1HR = createDuration(1, 0);
+    private static final Duration _2HRS = createDuration(2, 0);
+    private static final Duration _4HRS = createDuration(4, 0);
+    //Others
+    private final ParamsBuilder params;
 
     public CurfewDispatcherTest(ParamsBuilder params) {
         this.params = params;
@@ -28,27 +46,41 @@ public class CurfewDispatcherTest {
     @Parameterized.Parameters(name = "{0}")
     public static Collection<Object[]> data() {
         Object[][] data = new Object[][]{
-                {verifyCurfew(2000, 120).expectRun(1930, 20)},
-                {verifyCurfew(2000, 120).expectBlockedRun(2100, 20)},
-                {verifyCurfew(2000, 120).expectBlockedRun(2100, 120)},
-                {verifyCurfew(2000, 120).expectBlockedRun(1950, 20)},
-                {verifyCurfew(2000, 120).expectBlockedRun(1941, 20)},
-                {verifyCurfew(2000, 120).expectBlockedRun(1945, 90)},
-                {verifyCurfew(100, 120).expectBlockedRun(2330, 120)},
-                {verifyCurfew(100, 120).expectBlockedRun(2330, 240)},
+                {verifyCurfew(_8PM, _2HRS).expectRun(_7_30PM, _20MIN).describingChallenge("all before curfew")},
+                {verifyCurfew(_8PM, _2HRS).expectRun(_7_40PM, _20MIN).describingChallenge("end of run == start of curfew")},
+                {verifyCurfew(_8PM, _2HRS).expectRun(_10PM, _20MIN).describingChallenge("start of run == end of curfew")},
+                {verifyCurfew(_1AM, _2HRS).expectRun(_11_30PM, _1HR).describingChallenge("run starts before midnight")},
+                {verifyCurfew(_8PM, _2HRS).expectBlockedRun(_9PM, _20MIN).describingChallenge("all within curfew")},
+                {verifyCurfew(_8PM, _2HRS).expectBlockedRun(_9PM, _2HRS).describingChallenge("overlap with end of curfew")},
+                {verifyCurfew(_8PM, _2HRS).expectBlockedRun(_7PM, _4HRS).describingChallenge("overlap with entire curfew")},
+                {verifyCurfew(_8PM, _2HRS).expectBlockedRun(_7_50PM, _20MIN).describingChallenge("overlap with start of curfew")},
+                {verifyCurfew(_1AM, _2HRS).expectBlockedRun(_11_30PM, _2HRS).describingChallenge("run starts before midnight, overlap with start of curfew")},
+                {verifyCurfew(_1AM, _2HRS).expectBlockedRun(_11_30PM, _4HRS).describingChallenge("run starts before midnight, overlap with entire curfew")},
         };
         return Arrays.asList(data);
     }
 
-    private static ParamsBuilder verifyCurfew(int start, int duration) {
+    private static ParamsBuilder verifyCurfew(DateTime start, Duration duration) {
         return new ParamsBuilder(start, duration);
+    }
+
+    private static DateTime createDateTime(int hourOfDay, int minuteOfHour) {
+        return new DateTime(2012, 4, 14, hourOfDay, minuteOfHour);
+    }
+
+    private static Duration createDuration(int minutes) {
+        return createDuration(0, minutes);
+    }
+
+    private static Duration createDuration(int hours, int minutes) {
+        return new Duration(((hours * 60) + minutes) * 60 * 1000);
     }
 
     @Test
     public void testCanRun() throws Exception {
         //Setup
         Project t = Mockito.mock(Project.class);
-        Mockito.when(t.getEstimatedDuration()).thenReturn(params.duration * 60L * 1000L);
+        Mockito.when(t.getEstimatedDuration()).thenReturn(params.duration.getMillis());
 
         Queue.Item i = new Queue.Item(t, new ArrayList<Action>(), 0, null) {
             @Override
@@ -58,16 +90,12 @@ public class CurfewDispatcherTest {
         };
 
         Map<Descriptor<BuildWrapper>, BuildWrapper> map = new HashMap<Descriptor<BuildWrapper>, BuildWrapper>();
-        map.put(new CurfewDispatcherConfigurationBuildWrapper.DescriptorImpl(), new CurfewDispatcherConfigurationBuildWrapper("" + params.curfewStart, "" + params.curfewDuration));
+        map.put(new CurfewDispatcherConfigurationBuildWrapper.DescriptorImpl(), new CurfewDispatcherConfigurationBuildWrapper("" + params.curfewStart.toString("HHmm"), "" + params.curfewDuration.getStandardMinutes()));
         Mockito.when(t.getBuildWrappers()).thenReturn(map);
 
         CurfewDispatcher.CALENDAR_PROVIDER = new CurfewDispatcher.CalendarProvider() {
             public MutableDateTime getCalendar() {
-                MutableDateTime c = new MutableDateTime();
-                c.setHourOfDay(params.start / 100);
-                c.setMinuteOfHour(params.start % 100);
-
-                return c;
+                return params.start.toMutableDateTime();
             }
         };
 
@@ -87,26 +115,27 @@ public class CurfewDispatcherTest {
 
     static class ParamsBuilder {
 
-        private final int curfewStart;
-        private final int curfewDuration;
+        private final DateTime curfewStart;
+        private final Duration curfewDuration;
         private boolean expectRun = false;
-        private int start;
-        private int duration;
+        private DateTime start;
+        private Duration duration;
+        private String challenge;
 
-        public ParamsBuilder(int start, int duration) {
+        public ParamsBuilder(DateTime start, Duration duration) {
             this.curfewStart = start;
             this.curfewDuration = duration;
         }
 
-        public ParamsBuilder expectRun(int start, int duration) {
+        public ParamsBuilder expectRun(DateTime start, Duration duration) {
             return setExpectationForRun(start, duration, true);
         }
 
-        public ParamsBuilder expectBlockedRun(int start, int duration) {
+        public ParamsBuilder expectBlockedRun(DateTime start, Duration duration) {
             return setExpectationForRun(start, duration, false);
         }
 
-        private ParamsBuilder setExpectationForRun(int start, int duration, boolean expectRun) {
+        private ParamsBuilder setExpectationForRun(DateTime start, Duration duration, boolean expectRun) {
             this.start = start;
             this.duration = duration;
             this.expectRun = expectRun;
@@ -114,14 +143,21 @@ public class CurfewDispatcherTest {
             return this;
         }
 
+        private ParamsBuilder describingChallenge(String challenge) {
+            this.challenge = challenge;
+
+            return this;
+        }
+
         @Override
         public String toString() {
             return "Curfew from " +
-                    curfewStart +
-                    " till " + ((curfewStart + (curfewDuration * 100 / 60)) % 2400) +
+                    curfewStart.toString("HHmm") +
+                    " till " + curfewStart.plus(curfewDuration).toString("HHmm") +
                     ", expect " + (expectRun ? "a" : "NO") +
-                    " run from " + start +
-                    " till " + ((start + (duration * 100 / 60)) % 2400);
+                    " run from " + start.toString("HHmm") +
+                    " till " + start.plus(duration).toString("HHmm") +
+                    (challenge == null ? "" : " (Challenge: " + challenge + ")");
         }
     }
 }
