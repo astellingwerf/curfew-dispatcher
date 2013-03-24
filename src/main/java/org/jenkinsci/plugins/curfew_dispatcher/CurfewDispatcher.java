@@ -5,10 +5,7 @@ import hudson.model.Project;
 import hudson.model.Queue;
 import hudson.model.queue.CauseOfBlockage;
 import hudson.model.queue.QueueTaskDispatcher;
-import org.joda.time.Duration;
-import org.joda.time.Interval;
-import org.joda.time.MutableDateTime;
-import org.joda.time.MutableInterval;
+import org.joda.time.*;
 
 @Extension
 public class CurfewDispatcher extends QueueTaskDispatcher {
@@ -39,10 +36,24 @@ public class CurfewDispatcher extends QueueTaskDispatcher {
             startOfCurfew.setMinuteOfHour(configuration.getStartMinutes());
 
 
-            final MutableInterval curfew = new MutableInterval(startOfCurfew, new Duration(configuration.getDurationInt() * 60L * 1000l));
+            final MutableInterval curfew = new MutableInterval(startOfCurfew, new Duration(configuration.getDuration() * DateTimeConstants.MILLIS_PER_MINUTE));
 
 
-            final Interval run = new Interval(CALENDAR_PROVIDER.getCalendar(), new Duration(item.task.getEstimatedDuration()));
+            final Duration estimatedRunDuration = new Duration(item.task.getEstimatedDuration());
+            final Interval run = new Interval(CALENDAR_PROVIDER.getCalendar(), estimatedRunDuration);
+
+            Duration buffer = new Duration(0);
+            if (configuration.getBufferType() != null) {
+                switch (configuration.getBufferType()) {
+                    case MINUTES:
+                        buffer = new Duration(configuration.getBufferAmount() * DateTimeConstants.MILLIS_PER_MINUTE);
+                        break;
+                    case PERCENTAGE:
+                        buffer = new Duration((estimatedRunDuration.getMillis() * configuration.getBufferAmount()) / 100);
+                        break;
+                }
+                curfew.setStart(curfew.getStart().minus(buffer));
+            }
 
             boolean plusOneIteration = false;
             do {

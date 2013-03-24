@@ -2,9 +2,24 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define"
          xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:u="/util">
     <f:entry field="startTime" title="${%Start time}">
-        <f:textbox/>
+        <f:number/>
     </f:entry>
     <f:entry field="duration" title="${%Duration}">
-        <f:textbox/>
+        <f:number/>
     </f:entry>
+    <f:optionalBlock field="buffer" title="${%Extra buffer}">
+        <f:nested>
+            <f:entry field="bufferAmount" title="${%Amount}">
+                <f:number/>
+            </f:entry>
+            <f:entry name="bufferType" title="Unit" field="bufferType">
+                <select name="bufferType">
+                    <option value="minutes">${%minutes}</option>
+                    <option value="percentage">${%%}</option>
+                </select>
+            </f:entry>
+        </f:nested>
+    </f:optionalBlock>
+
+
 </j:jelly>

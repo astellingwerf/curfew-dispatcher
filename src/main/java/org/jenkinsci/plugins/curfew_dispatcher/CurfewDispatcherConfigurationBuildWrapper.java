@@ -7,22 +7,42 @@ import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
 import hudson.tasks.BuildWrapper;
 import hudson.tasks.BuildWrapperDescriptor;
+import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.StaplerRequest;
 
 import java.io.IOException;
 
+
 public class CurfewDispatcherConfigurationBuildWrapper extends BuildWrapper {
 
-    private final String startTime;
-    private final String duration;
-    private transient Integer startMinutes;
-    private transient Integer startHour;
-    private transient Integer durationInt;
+
+    private final int startMinutes;
+    private final int startHour;
+    private final int duration;
+    private final int bufferAmount;
+    private final BufferType bufferType;
 
     @DataBoundConstructor
-    public CurfewDispatcherConfigurationBuildWrapper(String startTime, String duration) {
-        this.startTime = startTime;
+    public CurfewDispatcherConfigurationBuildWrapper(int startTime, int duration, int bufferAmount, BufferType bufferType) {
+        this.startHour = startTime / 100;
+        this.startMinutes = startTime % 100;
         this.duration = duration;
+        this.bufferAmount = bufferAmount;
+        this.bufferType = bufferType;
+    }
+
+    //@DataBoundConstructor
+    public CurfewDispatcherConfigurationBuildWrapper(int startTime, int duration) {
+        this(startTime, duration, 0, null);
+    }
+
+    public int getBufferAmount() {
+        return bufferAmount;
+    }
+
+    public BufferType getBufferType() {
+        return bufferType;
     }
 
     @Override
@@ -32,32 +52,35 @@ public class CurfewDispatcherConfigurationBuildWrapper extends BuildWrapper {
     }
 
     public String getStartTime() {
-        return startTime;
+        return String.format("%2d%2d", startHour, startMinutes);
     }
 
-    public String getDuration() {
+    public int getDuration() {
         return duration;
     }
 
     int getStartMinutes() {
-        if (startMinutes == null) {
-            startMinutes = Integer.parseInt(startTime.substring(startTime.length() - 2));
-        }
         return startMinutes;
     }
 
     int getStartHour() {
-        if (startHour == null) {
-            startHour = Integer.parseInt(startTime.substring(0, startTime.length() - 2));
-        }
         return startHour;
     }
 
-    int getDurationInt() {
-        if (durationInt == null) {
-            durationInt = Integer.parseInt(duration);
+    enum BufferType {
+        PERCENTAGE,
+        MINUTES;
+
+        private static BufferType fromString(String s) {
+            if (s.equals("minutes")) {
+                return MINUTES;
+            }
+            if (s.equals("percentage")) {
+                return PERCENTAGE;
+            }
+
+            throw new IllegalArgumentException("s=" + s);
         }
-        return durationInt;
     }
 
     @Extension
@@ -71,6 +94,29 @@ public class CurfewDispatcherConfigurationBuildWrapper extends BuildWrapper {
         public boolean isApplicable(AbstractProject<?, ?> item) {
             return true;
         }
+
+        @Override
+        public BuildWrapper newInstance(StaplerRequest req, JSONObject formData) throws FormException {
+            if (formData.containsKey("buffer")) {
+                return new CurfewDispatcherConfigurationBuildWrapper(
+                        formData.getInt("startTime"),
+                        formData.getInt("duration"),
+                        formData.getJSONObject("buffer").getInt("bufferAmount"),
+                        BufferType.fromString(
+                                formData.getJSONObject("buffer").getString("bufferType"))
+                );
+
+            } else {
+                // This should work, but doesn't compile:
+                //return super.newInstance(req, formData);
+
+                return new CurfewDispatcherConfigurationBuildWrapper(
+                        formData.getInt("startTime"),
+                        formData.getInt("duration"));
+            }
+        }
     }
 
 }
+
+

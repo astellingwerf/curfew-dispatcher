@@ -56,6 +56,14 @@ public class CurfewDispatcherTest {
                 {verifyCurfew(_8PM, _2HRS).expectBlockedRun(_7_50PM, _20MIN).describingChallenge("overlap with start of curfew")},
                 {verifyCurfew(_1AM, _2HRS).expectBlockedRun(_11_30PM, _2HRS).describingChallenge("run starts before midnight, overlap with start of curfew")},
                 {verifyCurfew(_1AM, _2HRS).expectBlockedRun(_11_30PM, _4HRS).describingChallenge("run starts before midnight, overlap with entire curfew")},
+                //Buffers
+                {verifyCurfew(_8PM, _2HRS).expectRun(_7_40PM, _20MIN).withBufferMinutes(0).describingChallenge("end of run == start of curfew")},
+                {verifyCurfew(_8PM, _2HRS).expectBlockedRun(_7_40PM, _20MIN).withBufferMinutes(1).describingChallenge("end of run == start of curfew")},
+                {verifyCurfew(_8PM, _2HRS).expectRun(_7_40PM, _20MIN).withBufferPercentage(0).describingChallenge("end of run == start of curfew")},
+                {verifyCurfew(_8PM, _2HRS).expectBlockedRun(_7_40PM, _20MIN).withBufferPercentage(1).describingChallenge("end of run == start of curfew")},
+                {verifyCurfew(_8PM, _2HRS).expectRun(_7_30PM, _20MIN).withBufferPercentage(50).describingChallenge("all before curfew, with buffer on the edge")},
+                {verifyCurfew(_1AM, _2HRS).expectBlockedRun(_11_30PM, _1HR).withBufferMinutes(31).describingChallenge("run starts before midnight, overlap with start of curfew")},
+                {verifyCurfew(_1AM, _2HRS).expectBlockedRun(_11_30PM, _1HR).withBufferPercentage(51).describingChallenge("run starts before midnight, overlap with start of curfew")},
         };
         return Arrays.asList(data);
     }
@@ -90,7 +98,11 @@ public class CurfewDispatcherTest {
         };
 
         Map<Descriptor<BuildWrapper>, BuildWrapper> map = new HashMap<Descriptor<BuildWrapper>, BuildWrapper>();
-        map.put(new CurfewDispatcherConfigurationBuildWrapper.DescriptorImpl(), new CurfewDispatcherConfigurationBuildWrapper("" + params.curfewStart.toString("HHmm"), "" + params.curfewDuration.getStandardMinutes()));
+        map.put(new CurfewDispatcherConfigurationBuildWrapper.DescriptorImpl(), new CurfewDispatcherConfigurationBuildWrapper(
+                params.curfewStart.getHourOfDay() * 100 + params.curfewStart.getMinuteOfHour(),
+                (int)params.curfewDuration.getStandardMinutes(),
+                params.bufferAmount,
+                params.bufferType));
         Mockito.when(t.getBuildWrappers()).thenReturn(map);
 
         CurfewDispatcher.CALENDAR_PROVIDER = new CurfewDispatcher.CalendarProvider() {
@@ -121,6 +133,8 @@ public class CurfewDispatcherTest {
         private DateTime start;
         private Duration duration;
         private String challenge;
+        private int bufferAmount;
+        private CurfewDispatcherConfigurationBuildWrapper.BufferType bufferType;
 
         public ParamsBuilder(DateTime start, Duration duration) {
             this.curfewStart = start;
@@ -149,11 +163,29 @@ public class CurfewDispatcherTest {
             return this;
         }
 
+        private ParamsBuilder withBufferPercentage(int percentage) {
+            return setBuffer(percentage, CurfewDispatcherConfigurationBuildWrapper.BufferType.PERCENTAGE);
+
+        }
+
+        private ParamsBuilder withBufferMinutes(int minutes) {
+            return setBuffer(minutes, CurfewDispatcherConfigurationBuildWrapper.BufferType.MINUTES);
+
+        }
+
+        private ParamsBuilder setBuffer(int percentage, CurfewDispatcherConfigurationBuildWrapper.BufferType type) {
+            this.bufferAmount = percentage;
+            this.bufferType = type;
+
+            return this;
+        }
+
         @Override
         public String toString() {
             return "Curfew from " +
                     curfewStart.toString("HHmm") +
                     " till " + curfewStart.plus(curfewDuration).toString("HHmm") +
+                    (bufferType == null ? "" : " + " + bufferAmount+ (bufferType == CurfewDispatcherConfigurationBuildWrapper.BufferType.MINUTES? " minutes":"%"))+
                     ", expect " + (expectRun ? "a" : "NO") +
                     " run from " + start.toString("HHmm") +
                     " till " + start.plus(duration).toString("HHmm") +
