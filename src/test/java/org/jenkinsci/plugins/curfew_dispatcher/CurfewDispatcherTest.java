@@ -64,6 +64,7 @@ public class CurfewDispatcherTest {
                 {verifyCurfew(_8PM, _2HRS).expectRun(_7_30PM, _20MIN).withBufferPercentage(50).describingChallenge("all before curfew, with buffer on the edge")},
                 {verifyCurfew(_1AM, _2HRS).expectBlockedRun(_11_30PM, _1HR).withBufferMinutes(31).describingChallenge("run starts before midnight, overlap with start of curfew")},
                 {verifyCurfew(_1AM, _2HRS).expectBlockedRun(_11_30PM, _1HR).withBufferPercentage(51).describingChallenge("run starts before midnight, overlap with start of curfew")},
+                {verifyCurfew(_1AM, _2HRS).expectBlockedRun(_11_30PM, _1HR).withBufferPercentage(300).describingChallenge("run starts before midnight, overlap with entire curfew")},
         };
         return Arrays.asList(data);
     }

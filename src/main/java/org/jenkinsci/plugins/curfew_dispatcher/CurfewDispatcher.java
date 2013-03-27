@@ -55,7 +55,10 @@ public class CurfewDispatcher extends QueueTaskDispatcher {
                 curfew.setStart(curfew.getStart().minus(buffer));
             }
 
-            boolean plusOneIteration = false;
+            if (!curfew.isBefore(run)) {
+                subtractOneDay(curfew);
+            }
+
             do {
                 if (run.overlaps(curfew)) {
                     return new CauseOfBlockage() {
@@ -65,13 +68,23 @@ public class CurfewDispatcher extends QueueTaskDispatcher {
                         }
                     };
                 }
-                curfew.setEnd(curfew.getEnd().plusDays(1));
-                curfew.setStart(curfew.getStart().plusDays(1));
-            } while (plusOneIteration ^ (plusOneIteration |= !curfew.getStart().isBefore(CALENDAR_PROVIDER.getCalendar())));
+            } while (!addOneDayAndReturnCloneOfInput(curfew).isAfter(run));
 
             return null;
         }
 
+    }
+
+    private void subtractOneDay(MutableInterval interval) {
+        interval.setStart(interval.getStart().minusDays(1));
+        interval.setEnd(interval.getEnd().minusDays(1));
+    }
+
+    private MutableInterval addOneDayAndReturnCloneOfInput(MutableInterval interval) {
+        MutableInterval original = interval.copy();
+        interval.setEnd(interval.getEnd().plusDays(1));
+        interval.setStart(interval.getStart().plusDays(1));
+        return original;
     }
 
     interface CalendarProvider {
