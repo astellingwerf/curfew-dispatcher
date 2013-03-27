@@ -32,6 +32,8 @@ public class CurfewDispatcherTest {
     private static final DateTime _10PM = createDateTime(22, 0);
     private static final DateTime _11_30PM = createDateTime(23, 30);
     //Durations
+    private static final Duration _MINUS1MILLIS = new Duration(-1);
+    private static final Duration _0MIN = createDuration(0);
     private static final Duration _20MIN = createDuration(20);
     private static final Duration _1HR = createDuration(1, 0);
     private static final Duration _2HRS = createDuration(2, 0);
@@ -56,6 +58,12 @@ public class CurfewDispatcherTest {
                 {verifyCurfew(_8PM, _2HRS).expectBlockedRun(_7_50PM, _20MIN).describingChallenge("overlap with start of curfew")},
                 {verifyCurfew(_1AM, _2HRS).expectBlockedRun(_11_30PM, _2HRS).describingChallenge("run starts before midnight, overlap with start of curfew")},
                 {verifyCurfew(_1AM, _2HRS).expectBlockedRun(_11_30PM, _4HRS).describingChallenge("run starts before midnight, overlap with entire curfew")},
+                //Negative/zero duration
+                {verifyCurfew(_8PM, _2HRS).expectRun(_7_30PM, _MINUS1MILLIS).describingChallenge("estimated duration negative")},
+                {verifyCurfew(_8PM, _2HRS).expectRun(_8PM, _MINUS1MILLIS).describingChallenge("estimated duration negative")},
+                {verifyCurfew(_8PM, _2HRS).expectBlockedRun(_8PM.plus(1/* ms */), _MINUS1MILLIS).describingChallenge("estimated duration negative")},
+                {verifyCurfew(_8PM, _2HRS).expectBlockedRun(_9PM, _MINUS1MILLIS).describingChallenge("estimated duration negative")},
+                {verifyCurfew(_8PM, _2HRS).expectRun(_7_30PM, _0MIN).describingChallenge("estimated duration zero")},
                 //Buffers
                 {verifyCurfew(_8PM, _2HRS).expectRun(_7_40PM, _20MIN).withBufferMinutes(0).describingChallenge("end of run == start of curfew")},
                 {verifyCurfew(_8PM, _2HRS).expectBlockedRun(_7_40PM, _20MIN).withBufferMinutes(1).describingChallenge("end of run == start of curfew")},

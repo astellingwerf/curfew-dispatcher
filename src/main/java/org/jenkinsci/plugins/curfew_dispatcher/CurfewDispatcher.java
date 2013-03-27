@@ -34,12 +34,19 @@ public class CurfewDispatcher extends QueueTaskDispatcher {
             final MutableDateTime startOfCurfew = CALENDAR_PROVIDER.getCalendar();
             startOfCurfew.setHourOfDay(configuration.getStartHour());
             startOfCurfew.setMinuteOfHour(configuration.getStartMinutes());
+            startOfCurfew.setSecondOfMinute(0);
+            startOfCurfew.setMillisOfSecond(0);
 
 
             final MutableInterval curfew = new MutableInterval(startOfCurfew, new Duration(configuration.getDuration() * DateTimeConstants.MILLIS_PER_MINUTE));
 
 
-            final Duration estimatedRunDuration = new Duration(item.task.getEstimatedDuration());
+            long estimatedDuration = item.task.getEstimatedDuration();
+            if (estimatedDuration < 0) {
+                estimatedDuration = 0;
+            }
+
+            final Duration estimatedRunDuration = new Duration(estimatedDuration);
             final Interval run = new Interval(CALENDAR_PROVIDER.getCalendar(), estimatedRunDuration);
 
             Duration buffer = new Duration(0);
