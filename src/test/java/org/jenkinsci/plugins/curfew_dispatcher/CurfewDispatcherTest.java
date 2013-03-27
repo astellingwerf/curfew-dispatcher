@@ -109,7 +109,7 @@ public class CurfewDispatcherTest {
         Map<Descriptor<BuildWrapper>, BuildWrapper> map = new HashMap<Descriptor<BuildWrapper>, BuildWrapper>();
         map.put(new CurfewDispatcherConfigurationBuildWrapper.DescriptorImpl(), new CurfewDispatcherConfigurationBuildWrapper(
                 params.curfewStart.getHourOfDay() * 100 + params.curfewStart.getMinuteOfHour(),
-                (int)params.curfewDuration.getStandardMinutes(),
+                (int) params.curfewDuration.getStandardMinutes(),
                 params.bufferAmount,
                 params.bufferType));
         Mockito.when(t.getBuildWrappers()).thenReturn(map);
@@ -194,7 +194,7 @@ public class CurfewDispatcherTest {
             return "Curfew from " +
                     curfewStart.toString("HHmm") +
                     " till " + curfewStart.plus(curfewDuration).toString("HHmm") +
-                    (bufferType == null ? "" : " + " + bufferAmount+ (bufferType == CurfewDispatcherConfigurationBuildWrapper.BufferType.MINUTES? " minutes":"%"))+
+                    (bufferType == null ? "" : " + " + bufferAmount + (bufferType == CurfewDispatcherConfigurationBuildWrapper.BufferType.MINUTES ? " minutes" : "%")) +
                     ", expect " + (expectRun ? "a" : "NO") +
                     " run from " + start.toString("HHmm") +
                     " till " + start.plus(duration).toString("HHmm") +
