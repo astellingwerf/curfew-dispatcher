@@ -20,4 +20,10 @@
             </f:entry>
         </f:nested>
     </f:optionalBlock>
+    <f:entry name="action" title="Action" field="action">
+        <select name="action">
+            <option value="delay">${%Delay build untill after curfews}</option>
+            <option value="cancel">${%Cancel build}</option>
+        </select>
+    </f:entry>
 </j:jelly>

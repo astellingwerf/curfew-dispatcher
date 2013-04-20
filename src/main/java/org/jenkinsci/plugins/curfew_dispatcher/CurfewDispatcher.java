@@ -5,6 +5,7 @@ import hudson.model.Project;
 import hudson.model.Queue;
 import hudson.model.queue.CauseOfBlockage;
 import hudson.model.queue.QueueTaskDispatcher;
+import jenkins.model.Jenkins;
 import org.joda.time.*;
 
 @Extension
@@ -30,7 +31,6 @@ public class CurfewDispatcher extends QueueTaskDispatcher {
         if (configuration == null) {
             return super.canRun(item);
         } else {
-
             final MutableDateTime startOfCurfew = CALENDAR_PROVIDER.getCalendar();
             startOfCurfew.setHourOfDay(configuration.getStartHour());
             startOfCurfew.setMinuteOfHour(configuration.getStartMinutes());
@@ -68,6 +68,10 @@ public class CurfewDispatcher extends QueueTaskDispatcher {
 
             do {
                 if (run.overlaps(curfew)) {
+                    if(configuration.getAction() == CurfewDispatcherConfigurationBuildWrapper.ActionType.CANCEL)
+                    {
+                        Jenkins.getInstance().getQueue().cancel(item);
+                    }
                     return new CauseOfBlockage() {
                         @Override
                         public String getShortDescription() {

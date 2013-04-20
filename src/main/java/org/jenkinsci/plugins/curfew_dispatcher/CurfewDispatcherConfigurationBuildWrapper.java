@@ -22,19 +22,21 @@ public class CurfewDispatcherConfigurationBuildWrapper extends BuildWrapper {
     private final int duration;
     private final int bufferAmount;
     private final BufferType bufferType;
+    private final ActionType action;
 
     @DataBoundConstructor
-    public CurfewDispatcherConfigurationBuildWrapper(int startTime, int duration, int bufferAmount, BufferType bufferType) {
+    public CurfewDispatcherConfigurationBuildWrapper(int startTime, int duration, int bufferAmount, BufferType bufferType, ActionType action) {
         this.startHour = startTime / 100;
         this.startMinutes = startTime % 100;
         this.duration = duration;
         this.bufferAmount = bufferAmount;
         this.bufferType = bufferType;
+        this.action = action;
     }
 
     //@DataBoundConstructor
-    public CurfewDispatcherConfigurationBuildWrapper(int startTime, int duration) {
-        this(startTime, duration, 0, null);
+    public CurfewDispatcherConfigurationBuildWrapper(int startTime, int duration, ActionType action) {
+        this(startTime, duration, 0, null, action);
     }
 
     public int getBufferAmount() {
@@ -67,6 +69,10 @@ public class CurfewDispatcherConfigurationBuildWrapper extends BuildWrapper {
         return startHour;
     }
 
+    ActionType getAction() {
+        return action;
+    }
+
     enum BufferType {
         PERCENTAGE,
         MINUTES;
@@ -77,6 +83,22 @@ public class CurfewDispatcherConfigurationBuildWrapper extends BuildWrapper {
             }
             if (s.equals("percentage")) {
                 return PERCENTAGE;
+            }
+
+            throw new IllegalArgumentException("s=" + s);
+        }
+    }
+
+    enum ActionType {
+        DELAY,
+        CANCEL;
+
+        private static ActionType fromString(String s) {
+            if (s.equals("delay")) {
+                return DELAY;
+            }
+            if (s.equals("cancel")) {
+                return CANCEL;
             }
 
             throw new IllegalArgumentException("s=" + s);
@@ -103,7 +125,8 @@ public class CurfewDispatcherConfigurationBuildWrapper extends BuildWrapper {
                         formData.getInt("duration"),
                         formData.getJSONObject("buffer").getInt("bufferAmount"),
                         BufferType.fromString(
-                                formData.getJSONObject("buffer").getString("bufferType"))
+                                formData.getJSONObject("buffer").getString("bufferType")),
+                        ActionType.fromString(formData.getString("action"))
                 );
 
             } else {
@@ -112,7 +135,8 @@ public class CurfewDispatcherConfigurationBuildWrapper extends BuildWrapper {
 
                 return new CurfewDispatcherConfigurationBuildWrapper(
                         formData.getInt("startTime"),
-                        formData.getInt("duration"));
+                        formData.getInt("duration"),
+                        ActionType.fromString(formData.getString("action")));
             }
         }
     }
