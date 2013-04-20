@@ -52,7 +52,7 @@ public class CurfewDispatcherConfigurationBuildWrapper extends BuildWrapper {
     }
 
     public String getStartTime() {
-        return String.format("%2d%2d", startHour, startMinutes);
+        return String.format("%02d%02d", startHour, startMinutes);
     }
 
     public int getDuration() {
